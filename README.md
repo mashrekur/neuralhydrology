@@ -22,4 +22,4 @@ this code in our day-to-day research and will continue to integrate our new rese
 # Contact
 
 If you have any questions regarding the usage of this repository, feature requests or comments, please open an issue.
-You can also reach out to Frederik Kratzert (kratzert(at)ml.jku.at) by email.
+You can also reach out to Frederik Kratzert (kratzert(at)ml.jku.at) by email
