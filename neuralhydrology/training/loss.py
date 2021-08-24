@@ -250,6 +250,60 @@ class MaskedNSELoss(BaseLoss):
         # here we need to subset the per_basin_target_stds. We slice to keep the shape of [bs, seq, 1]
         return {key: value[:, :, n_target:n_target + 1] for key, value in additional_data.items()}
 
+class MaskedBetaNSELoss(BaseLoss):
+    """Basin-averaged Beta Nash--Sutcliffe Model Efficiency Coefficient loss.
+
+    To use this loss in a forward pass, the passed `prediction` dict must contain
+    the key ``y_hat``, and the `data` dict must contain ``y`` and ``per_basin_target_stds``.
+
+    A description of the loss function is available in [#]_.
+
+    Parameters
+    ----------
+    cfg : Config
+        The run configuration.
+    eps: float, optional
+        Small constant for numeric stability.
+
+    References
+    ----------
+    .. [#] Gupta, H. V., Kling, H., Yilmaz, K. K., & Martinez, G. F. (2009). Decomposition of the mean squared error 
+        and NSE performance criteria: Implications for improving hydrological modelling. Journal of hydrology, 377(1-2),
+        80-91.
+    """
+    def __init__(self, cfg: Config):
+        super(MaskedBetaNSELoss, self).__init__(cfg, prediction_keys=['y_hat'], ground_truth_keys=['y'])
+
+    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
+        mask = ~torch.isnan(ground_truth['y'])
+        loss = (torch.mean((prediction['y_hat'][mask]) - torch.mean(ground_truth['y'][mask])))/torch.std(ground_truth['y'][mask])
+        return loss
+
+#    def __init__(self, cfg: Config, eps: float = 0.1):
+#        super(MaskedBetaNSELoss, self).__init__(cfg,
+#                                            prediction_keys=['y_hat'],
+#                                            ground_truth_keys=['y'],
+#                                            additional_data=['per_basin_target_stds'])
+#        self.eps = eps
+#
+#    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
+#        mask = ~torch.isnan(ground_truth['y'])
+#        y_hat = prediction['y_hat'][mask]
+#        y = ground_truth['y'][mask]
+#        per_basin_target_stds = kwargs['per_basin_target_stds']
+#        # expand dimension 1 to predict_last_n
+#        per_basin_target_stds = per_basin_target_stds.expand_as(prediction['y_hat'])[mask]
+#
+#        squared_error = (y_hat.mean() - y.mean())
+#        weights = 1 / (per_basin_target_stds + self.eps)**2
+#        scaled_loss = weights * squared_error
+#        return torch.mean(scaled_loss)
+#
+#    @staticmethod
+#    def _subset_additional_data(additional_data: Dict[str, torch.Tensor], n_target: int) -> Dict[str, torch.Tensor]:
+#        # here we need to subset the per_basin_target_stds. We slice to keep the shape of [bs, seq, 1]
+#        return {key: value[:, :, n_target:n_target + 1] for key, value in additional_data.items()}
+
 
 class MaskedGMMLoss(BaseLoss):
     """Average negative log-likelihood for a gaussian mixture model (GMM). 
