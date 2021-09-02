@@ -1,4 +1,5 @@
 from typing import Dict, List, Tuple
+import math
 
 import numpy as np
 import torch
@@ -252,6 +253,7 @@ class MaskedNSELoss(BaseLoss):
 
 class MaskedBetaNSELoss(BaseLoss):
     """Basin-averaged Beta Nash--Sutcliffe Model Efficiency Coefficient loss.
+    *description needs to be updated*
 
     To use this loss in a forward pass, the passed `prediction` dict must contain
     the key ``y_hat``, and the `data` dict must contain ``y`` and ``per_basin_target_stds``.
@@ -304,6 +306,49 @@ class MaskedBetaNSELoss(BaseLoss):
 #        # here we need to subset the per_basin_target_stds. We slice to keep the shape of [bs, seq, 1]
 #        return {key: value[:, :, n_target:n_target + 1] for key, value in additional_data.items()}
 
+class MaskedKGELoss(BaseLoss):
+    """Basin-averaged Beta Nash--Sutcliffe Model Efficiency Coefficient loss.
+    *description needs to be updated*
+
+    To use this loss in a forward pass, the passed `prediction` dict must contain
+    the key ``y_hat``, and the `data` dict must contain ``y`` and ``per_basin_target_stds``.
+
+    A description of the loss function is available in [#]_.
+
+    Parameters
+    ----------
+    cfg : Config
+        The run configuration.
+    eps: float, optional
+        Small constant for numeric stability.
+
+    References
+    ----------
+    .. [#] Gupta, H. V., Kling, H., Yilmaz, K. K., & Martinez, G. F. (2009). Decomposition of the mean squared error 
+        and NSE performance criteria: Implications for improving hydrological modelling. Journal of hydrology, 377(1-2),
+        80-91.
+    """
+    def __init__(self, cfg: Config):
+        super(MaskedKGELoss, self).__init__(cfg, prediction_keys=['y_hat'], ground_truth_keys=['y'])
+
+    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
+        mask = ~torch.isnan(ground_truth['y'])
+        
+        y_arr = torch.Tensor.numpy(ground_truth['y'][mask], requires_grad=True)
+        yhat_arr = torch.Tensor.numpy(prediction['y_hat'][mask], requires_grad=True)
+        r = np.corrcoef(y_arr,yhat_arr)
+        
+        y_stdev = torch.std(ground_truth['y'][mask])
+        yhat_stdev = torch.std(prediction['y_hat'][mask])
+        
+        y_mean = torch.mean(ground_truth['y'][mask])
+        yhat_mean = torch.mean(prediction['y_hat'][mask])
+        
+        a = (r - 1)**2
+        b = ((yhat_stdev/y_stdev)-1)**2
+        c = ((yhat_mean/y_mean)-1)**2
+        loss = 1 - math.sqrt(a+b+c)
+        return loss
 
 class MaskedGMMLoss(BaseLoss):
     """Average negative log-likelihood for a gaussian mixture model (GMM). 

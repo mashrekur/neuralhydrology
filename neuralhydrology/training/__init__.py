@@ -58,6 +58,8 @@ def get_loss_obj(cfg: Config) -> loss.BaseLoss:
         loss_obj = loss.MaskedNSELoss(cfg)
     elif cfg.loss.lower() == "betanse":
         loss_obj = loss.MaskedBetaNSELoss(cfg)
+    elif cfg.loss.lower() == "kge":
+        loss_obj = loss.MaskedKGELoss(cfg)
     elif cfg.loss.lower() == "weightednse":
         warnings.warn("'WeightedNSE loss has been removed. Use 'NSE' with 'target_loss_weights'", FutureWarning)
         loss_obj = loss.MaskedNSELoss(cfg)
